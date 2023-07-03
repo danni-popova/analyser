@@ -1,12 +1,18 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
+	pb "github.com/danni-popova/analyser/proto"
 )
 
 // userAgentCmd represents the userAgent command
@@ -31,7 +37,24 @@ func init() {
 }
 
 func runUserAgentCommand(cmd *cobra.Command, args []string) {
-	fmt.Println("User ran user-agent command")
+	var conn *grpc.ClientConn
+	conn, err := grpc.Dial("localhost:9000", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		fmt.Println("Couldn't connect to server. Check you have the right values for Host and Port in your config.")
+	}
+	defer conn.Close()
+
+	client := pb.NewAnalyserClient(conn)
+	ctx, cancel := context.WithTimeout(cmd.Context(), time.Second*5)
+	defer cancel()
+
+	r, err := client.AnalyseUserAgent(ctx, &pb.AnalyseUserAgentRequest{
+		UserAgent: "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0",
+	})
+	if err != nil {
+		log.Fatalf("could not greet: %v", err)
+	}
+	fmt.Println("Browser: " + r.Browser)
 }
 
 func readConfig() {
