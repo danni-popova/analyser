@@ -2,7 +2,6 @@
 proto: ## Generate the Go code from our protobuf definitions
 	protoc --proto_path=proto --go_out=proto --go_opt=paths=source_relative --go-grpc_out=proto --go-grpc_opt=paths=source_relative analyser.proto
 
-
 test: ## Run tests
 	go test -v ./...
 
