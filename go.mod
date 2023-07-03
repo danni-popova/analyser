@@ -3,6 +3,7 @@ module github.com/danni-popova/analyser
 go 1.19
 
 require (
+	github.com/mileusna/useragent v1.3.3
 	github.com/stretchr/testify v1.8.4
 	google.golang.org/grpc v1.56.1
 	google.golang.org/protobuf v1.31.0
