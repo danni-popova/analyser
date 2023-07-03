@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package analyser;
+
+option go_package = "github.com/danni-popova/analyser";
+
+// Analyser service definition
+service Analyser {
+  // Analyse is an endpoint that accepts a user agent string, analyses it and returns information about it.
+  rpc AnalyseUserAgent (AnalyseUserAgentRequest) returns (AnalyseUserAgentResponse) {}
+}
+
+// AnalyseRequest is the request the Analyse endpoint accepts.
+message AnalyseUserAgentRequest {
+  // A user agent string from an HTTP request
+  string user_agent = 1;
+}
+
+// AnalyseResponse is the response returned from the Analyse endpoint, containing information about
+// the analysis result from the user agent string.
+message AnalyseUserAgentResponse {
+  // The browser contained in the user agent string
+  string browser = 1;
+
+  // Note: More fields can be added here later to extend the endpoint's functionality
+  // string os = 2;
+}
