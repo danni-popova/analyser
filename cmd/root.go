@@ -5,14 +5,19 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 const (
-	UserAgentCommand = "user-agent"
+	UserAgentCommand   = "user-agent"
+	CookiesCommand     = "cookies"
+	ContentTypeCommand = "content-type"
 )
-
-var cfgFile string
 
 type Config struct {
 	Host string `json:"host"`
@@ -42,14 +47,17 @@ var rootCmd = &cobra.Command{
 		}
 
 		// Check if the server is reachable with the provided config
-		err = testConnection(config)
+		conn, err := testConnection(config)
 		if err != nil {
 			fmt.Println("Couldn't connect to server. Please check you configured the correct values.")
 			return
 		}
+		// Make sure to close connection on exit
+		defer conn.Close()
 
 		// Create config file
 		err = createConfig(config)
+		// TODO: this error means the config already existed, this should maybe be moved
 		if err != nil {
 			fmt.Println("Oops! Couldn't persist the config.")
 		}
@@ -60,9 +68,14 @@ var rootCmd = &cobra.Command{
 			return
 		}
 		// Run user agent and display results
-		if command == UserAgentCommand {
-			runUserAgent(config)
+		switch command {
+		case UserAgentCommand:
+			runUserAgent(conn)
+		default:
+			runUnimplemented()
 		}
+
+		// Display options again
 	},
 }
 
@@ -75,38 +88,66 @@ func Execute() {
 
 // readConfig will detect if there's an existing configuration
 func readConfig() (*Config, error) {
+	// Find home directory.
+	home, err := homedir.Dir()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 
-	return nil, errors.New("config file not found")
-}
+	// Search config in home directory with name ".analyser" (without extension).
+	viper.AddConfigPath(home)
+	viper.SetConfigName(".analyser")
+	viper.SetConfigType("json")
 
-// runConfigure will prompt the user to create a new config
-func runConfigure() (*Config, error) {
+	err = viper.ReadInConfig()
+	if err != nil {
+		return nil, errors.New("config file not found")
+	}
 
-	return nil, errors.New("couldn't configure cli")
+	fmt.Println("Using config file:", viper.ConfigFileUsed())
+	host := viper.GetString("host")
+	if err != nil {
+		return nil, errors.New("Host isn't set in config")
+	}
+
+	port := viper.GetInt("port")
+	if err != nil {
+		return nil, errors.New("Port isn't set in config")
+	}
+
+	return &Config{
+		Host: host,
+		Port: port,
+	}, nil
 }
 
 // testConnection will ensure the server is reachable
-func testConnection(config *Config) error {
-	return nil
+func testConnection(config *Config) (*grpc.ClientConn, error) {
+	connString := fmt.Sprintf("%s:%d", config.Host, config.Port)
+	return grpc.Dial(connString, grpc.WithTransportCredentials(insecure.NewCredentials()))
 }
 
 // createConfig will persist the config so the user doesn't need to
 // reconfigure on next run
 func createConfig(config *Config) error {
+	home, err := homedir.Dir()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	viper.AddConfigPath(home)
+	viper.SetConfigName(".analyser")
+	viper.SetConfigType("json")
+	viper.Set("host", config.Host)
+	viper.Set("port", config.Port)
+
+	err = viper.SafeWriteConfig()
+
+	if err != nil {
+		return err
+	}
+
 	return nil
-}
-
-// selectCommand will provide a list of commands for the user to select
-// and run
-func selectCommand() (string, error) {
-	return "", errors.New("error occurred while prompting to select command to run")
-}
-
-func runUserAgent(config *Config) {
-
-	return
-}
-
-func runUnimplemented() {
-	fmt.Println("Sorry, this command isn't implemented yet.")
 }
